@@ -131,7 +131,7 @@ async function sendToApi(content, attachments) {
 			{
 				headers: {
 					"Content-Type": "application/json",
-					Authorization: `Bearer ${config.apiToken}"`,
+					Authorization: `Bearer ${config.apiToken}`,
 				},
 			}
 		);
