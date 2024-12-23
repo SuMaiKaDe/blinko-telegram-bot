@@ -102,46 +102,65 @@ bot.on("message", async (ctx) => {
         : null;
       let attachments = [];
 
-      // 检查是否是URL
-      const urlRegex = /(https?:\/\/|www\.)[^\s]+/g;
-      const urls = content?.match(urlRegex);
+      // 检查消息是否只包含URL（消息内容去除空格后完全匹配URL格式）
+      const urlRegex = /^(?:https?:\/\/|www\.)[^\s]+$/;
+      const isUrlOnly = content && urlRegex.test(content.trim());
 
-      if (urls && urls.length > 0) {
+      if (isUrlOnly) {
         const loadingMessage = await ctx.reply("正在读取URL内容...", {
           reply_to_message_id: ctx.message.message_id,
         });
 
         try {
-          const url = urls[0].startsWith('www.') ? 'https://' + urls[0] : urls[0];
-          const urlContent = await retryOperation(() => readUrl(url));
+          const url = content.trim().startsWith('www.') ? 'https://' + content.trim() : content.trim();
           
-          await ctx.telegram.editMessageText(
-            ctx.chat.id,
-            loadingMessage.message_id,
-            null,
-            "请选择操作：",
-            {
-              reply_markup: {
-                inline_keyboard: [
-                  [
-                    { text: "保存", callback_data: `save_${loadingMessage.message_id}` },
-                    { text: "总结", callback_data: `summarize_${loadingMessage.message_id}` },
-                    { text: "取消", callback_data: `cancel_${loadingMessage.message_id}` },
-                  ],
-                ],
-              },
+          if (config.enableJina) {
+            const urlContent = await retryOperation(() => readUrl(url));
+            
+            const buttons = [
+              { text: "保存", callback_data: `save_${loadingMessage.message_id}` },
+              { text: "取消", callback_data: `cancel_${loadingMessage.message_id}` },
+            ];
+            
+            // 如果启用了AI功能，添加总结按钮
+            if (config.enableAI) {
+              buttons.splice(1, 0, { text: "总结", callback_data: `summarize_${loadingMessage.message_id}` });
             }
-          );
+            
+            await ctx.telegram.editMessageText(
+              ctx.chat.id,
+              loadingMessage.message_id,
+              null,
+              "请选择操作：",
+              {
+                reply_markup: {
+                  inline_keyboard: [buttons],
+                },
+              }
+            );
 
-          ctx.session = ctx.session || {};
-          ctx.session[loadingMessage.message_id] = urlContent;
-          
+            ctx.session = ctx.session || {};
+            ctx.session[loadingMessage.message_id] = urlContent;
+          } else {
+            // 如果未启用Jina，直接作为普通文本处理
+            await ctx.telegram.deleteMessage(ctx.chat.id, loadingMessage.message_id);
+            const savingMessage = await ctx.reply("收到，正在保存", {
+              reply_to_message_id: ctx.message.message_id,
+            });
+            const saveResult = await retryOperation(() => sendToApi(content, []));
+            await ctx.telegram.editMessageText(
+              ctx.chat.id,
+              savingMessage.message_id,
+              null,
+              saveResult.id ? "已保存" : "保存失败"
+            );
+          }
           return;
         } catch (error) {
           logger.error("Error processing URL:", {
             error: error.message,
             stack: error.stack,
-            url: urls[0],
+            url: content.trim(),
           });
           await ctx.telegram.editMessageText(
             ctx.chat.id,
