@@ -53,7 +53,6 @@ bot.on("message", async (ctx) => {
             ctx.message.photo.slice(-1).map((photo) => photo.file_id)
           );
         }
-        }
 
         // 上传多个文件
         for (const fileId of fileIds) {
