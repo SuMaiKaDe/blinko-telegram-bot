@@ -57,105 +57,32 @@ async function handleCallbackQuery(ctx) {
   const urlContent = ctx.session?.[messageId];
 
   if (!urlContent) {
-    await ctx.telegram.answerCallbackQuery(ctx.callbackQuery.id, {
-      text: "内容已过期，请重新发送URL"
-    });
+    await ctx.reply("内容已过期，请重新发送URL");
     return;
   }
 
   switch (action) {
     case "save":
-      const saveResult = await sendToApi(urlContent.formatted, []);
-      await ctx.telegram.answerCallbackQuery(ctx.callbackQuery.id, {
-        text: saveResult.id ? "保存成功" : "保存失败"
-      });
-      await ctx.telegram.editMessageReplyMarkup(
-        ctx.callbackQuery.message.chat.id,
-        ctx.callbackQuery.message.message_id,
-        undefined,
-        { inline_keyboard: [] }
-      );
+      const saveResult = await sendToApi(urlContent.raw.content, []);
+      await ctx.reply(saveResult.id ? "保存成功" : "保存失败");
       break;
 
     case "summarize":
-      await ctx.telegram.editMessageText(
-        ctx.callbackQuery.message.chat.id,
-        ctx.callbackQuery.message.message_id,
-        undefined,
-        urlContent.formatted + "\n\n正在生成摘要...",
-        { parse_mode: "MarkdownV2" }
-      );
-      
       try {
         const summary = await summarizeContent(urlContent);
-        await ctx.telegram.editMessageText(
-          ctx.callbackQuery.message.chat.id,
-          ctx.callbackQuery.message.message_id,
-          undefined,
-          summary,
-          {
-            parse_mode: "MarkdownV2",
-            reply_markup: {
-              inline_keyboard: [
-                [
-                  { text: "保存", callback_data: `save_summary_${messageId}` },
-                  { text: "取消", callback_data: `cancel_${messageId}` },
-                ],
-              ],
-            },
-          }
-        );
-        
-        ctx.session[messageId] = { ...urlContent, formatted: summary };
+        const summaryResult = await sendToApi(summary, []);
+        await ctx.reply(summaryResult.id ? "摘要已保存" : "摘要保存失败");
       } catch (error) {
         logger.error("Error generating summary:", {
           error: error.message,
           stack: error.stack,
         });
-        await ctx.telegram.editMessageText(
-          ctx.callbackQuery.message.chat.id,
-          ctx.callbackQuery.message.message_id,
-          undefined,
-          urlContent.formatted + "\n\n生成摘要失败，请重试",
-          {
-            parse_mode: "MarkdownV2",
-            reply_markup: {
-              inline_keyboard: [
-                [
-                  { text: "保存", callback_data: `save_${messageId}` },
-                  { text: "总结", callback_data: `summarize_${messageId}` },
-                  { text: "取消", callback_data: `cancel_${messageId}` },
-                ],
-              ],
-            },
-          }
-        );
+        await ctx.reply("生成摘要失败，请重试");
       }
       break;
 
-    case "save_summary":
-      const summaryResult = await sendToApi(urlContent.formatted, []);
-      await ctx.telegram.answerCallbackQuery(ctx.callbackQuery.id, {
-        text: summaryResult.id ? "摘要保存成功" : "摘要保存失败"
-      });
-      await ctx.telegram.editMessageReplyMarkup(
-        ctx.callbackQuery.message.chat.id,
-        ctx.callbackQuery.message.message_id,
-        undefined,
-        { inline_keyboard: [] }
-      );
-      break;
-
     case "cancel":
-      await ctx.telegram.editMessageReplyMarkup(
-        ctx.callbackQuery.message.chat.id,
-        ctx.callbackQuery.message.message_id,
-        undefined,
-        { inline_keyboard: [] }
-      );
-      await ctx.telegram.answerCallbackQuery(ctx.callbackQuery.id, {
-        text: "已取消"
-      });
+      await ctx.reply("已取消");
       break;
   }
 }
@@ -191,10 +118,8 @@ bot.on("message", async (ctx) => {
             ctx.chat.id,
             loadingMessage.message_id,
             null,
-            urlContent.formatted,
+            "请选择操作：",
             {
-              parse_mode: "MarkdownV2",
-              disable_web_page_preview: true,
               reply_markup: {
                 inline_keyboard: [
                   [
@@ -309,9 +234,7 @@ bot.on("callback_query", async (ctx) => {
       stack: error.stack,
       query: ctx.callbackQuery.data,
     });
-    await ctx.telegram.answerCallbackQuery(ctx.callbackQuery.id, {
-      text: error.message === "操作超时" ? "操作超时,请重试" : "处理请求时发生错误"
-    });
+    await ctx.reply(error.message === "操作超时" ? "操作超时,请重试" : "处理请求时发生错误");
   }
 });
 
