@@ -10,8 +10,8 @@
 - 接收指定用户的文件（如文档、图片等），上传到 API 并保存文件信息。
 - 自动回复“收到，正在保存”，并在保存完成后更新为“已保存”或“保存失败”。
 
-## 使用
-
+# 使用
+## 源代码直接使用
 1. 克隆仓库或下载项目文件。
 2. 安装依赖：
 
@@ -19,7 +19,7 @@
    npm install
    ```
 
-## 配置
+### 配置
 
 在 `config.js` 文件中配置以下参数：
 
@@ -39,7 +39,7 @@ export default {
 };
 ```
 
-## 使用
+### 使用
 
 1. 启动机器人：
 
@@ -49,10 +49,13 @@ export default {
 
 2. 在 Telegram 中向你的机器人发送消息或文件，机器人会自动处理并保存到你的 blinko 中。
 
-## 日志
+### 日志
 
 日志记录使用 [Winston](https://github.com/winstonjs/winston) 库，错误日志会记录到 `error.log` 文件中。
 
+## docker
+有老哥[jonnyan404](https://github.com/Jonnyan404)做了docker
+https://hub.docker.com/r/jonnyan404/blinko-tg
 ## 贡献
 
 欢迎贡献！请提交 Pull Request 或提出 Issue。
