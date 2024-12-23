@@ -9,4 +9,6 @@ export default {
 	openaiModel: "gpt-3.5-turbo", // OpenAI模型名称
 	// Jina Reader配置
 	jinaToken: "", // Jina Reader API Token
+	// Telegraph配置
+	telegraphToken: "", // Telegraph Access Token
 };

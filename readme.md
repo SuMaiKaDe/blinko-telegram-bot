@@ -8,7 +8,7 @@
 
 - 接收指定用户的文本消息，并将其保存到 API。
 - 接收指定用户的文件（如文档、图片等），上传到 API 并保存文件信息。
-- 自动回复“收到，正在保存”，并在保存完成后更新为“已保存”或“保存失败”。
+- 自动回复"收到，正在保存"，并在保存完成后更新为"已保存"或"保存失败"。
 
 # 使用
 ## 源代码直接使用
@@ -27,6 +27,7 @@
 - `userId`: 指定用户的消息接收 ID。
 - `apiToken`: 用于访问 blinko 的 API token。
 - `apiUrl`: blinko 的基础 URL。
+- `telegraphToken`: Telegraph Access Token（可选，用于处理长文本）。
 
 示例：
 
@@ -36,8 +37,20 @@ export default {
 	userId: "YOUR_USER_ID",
 	apiToken: "YOUR_API_TOKEN",
 	apiUrl: "https://blink.baidu.com:1111/", //链接在设置里找取api之前
+	telegraphToken: "YOUR_TELEGRAPH_TOKEN", // 可选，用于处理长文本
 };
 ```
+
+#### 获取 Telegraph Token
+
+如果需要处理长文本，你需要获取 Telegraph Access Token：
+
+1. 使用 Telegram 访问 [@telegraph](https://t.me/telegraph) 机器人
+2. 发送 `/start` 命令
+3. 点击 "Create Account" 按钮
+4. 获取返回的 Access Token 并填入配置文件
+
+如果不配置 Telegraph Token，长文本将只显示标题和操作按钮。
 
 ### 使用
 
