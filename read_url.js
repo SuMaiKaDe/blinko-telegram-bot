@@ -61,7 +61,7 @@ export async function readUrl(url) {
     return {
       raw: {
         title: data.title,
-        content: `# ${data.title}\n\n${data.content}\n\n[原文链接](${data.url})`,
+        content: `# ${data.title}\n\n${data.content}\n\n[${data.title}](${data.url})`,
         url: data.url
       }
     };
@@ -83,7 +83,7 @@ export async function readUrl(url) {
 export async function summarizeContent(content) {
   try {
     const summary = await retryOperation(() => generateSummary(content.raw.content));
-    return `# ${content.raw.title} - 摘要\n\n${summary}\n\n[原文链接](${content.raw.url})`;
+    return summary;
   } catch (error) {
     logger.error("Error generating summary:", {
       error: error.message,

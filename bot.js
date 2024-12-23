@@ -103,7 +103,7 @@ bot.on("message", async (ctx) => {
       let attachments = [];
 
       // 检查是否是URL
-      const urlRegex = /(https?:\/\/[^\s]+)/g;
+      const urlRegex = /(https?:\/\/|www\.)[^\s]+/g;
       const urls = content?.match(urlRegex);
 
       if (urls && urls.length > 0) {
@@ -112,7 +112,8 @@ bot.on("message", async (ctx) => {
         });
 
         try {
-          const urlContent = await retryOperation(() => readUrl(urls[0]));
+          const url = urls[0].startsWith('www.') ? 'https://' + urls[0] : urls[0];
+          const urlContent = await retryOperation(() => readUrl(url));
           
           await ctx.telegram.editMessageText(
             ctx.chat.id,
