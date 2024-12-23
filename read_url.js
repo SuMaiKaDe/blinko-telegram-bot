@@ -45,11 +45,15 @@ export async function readUrl(url) {
   try {
     const headers = {
       "Accept": "application/json",
-      "X-Retain-Images": "none",
     };
 
     if (config.jinaToken) {
       headers["Authorization"] = `Bearer ${config.jinaToken}`;
+    }
+
+    // 根据配置决定是否保留图片
+    if (!config.jinaKeepImages) {
+      headers["X-Retain-Images"] = "none";
     }
 
     const response = await retryOperation(() => 
@@ -83,7 +87,7 @@ export async function readUrl(url) {
 export async function summarizeContent(content) {
   try {
     const summary = await retryOperation(() => generateSummary(content.raw.content));
-    return summary;
+    return `${summary}\n\n[${content.raw.title}](${content.raw.url})`;
   } catch (error) {
     logger.error("Error generating summary:", {
       error: error.message,
