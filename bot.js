@@ -50,8 +50,9 @@ bot.on("message", async (ctx) => {
         }
         if (ctx.message.photo) {
           fileIds = fileIds.concat(
-            ctx.message.photo.map((photo) => photo.file_id)
+            ctx.message.photo.slice(-1).map((photo) => photo.file_id)
           );
+        }
         }
 
         // 上传多个文件
