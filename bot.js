@@ -152,7 +152,8 @@ bot.on("message", async (ctx) => {
             null,
             urlContent.formatted,
             {
-              parse_mode: "Markdown",
+              parse_mode: "MarkdownV2",
+              disable_web_page_preview: true,
               reply_markup: {
                 inline_keyboard: [
                   [

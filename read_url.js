@@ -36,8 +36,15 @@ async function retryOperation(operation, maxRetries = 3) {
   throw lastError;
 }
 
+// 转义 Markdown 特殊字符
+function escapeMarkdown(text) {
+  return text
+    .replace(/[_*[\]()~`>#+=|{}.!-]/g, '\\$&')
+    .replace(/\n/g, '\n');
+}
+
 /**
- * 读取URL内容
+ * 读取URL内���
  * @param {string} url - 要读取的URL
  * @returns {Promise<Object>} - 处理后的内容对象
  */
@@ -58,8 +65,8 @@ export async function readUrl(url) {
     
     const { data } = response.data;
 
-    // 格式化内容,添加更多空行以提高可读性
-    const formattedContent = `# ${data.title}\n\n${data.content}\n\n[原文链接](${data.url})`;
+    // 格式化内容,添加更多空行以提高可读性，并转义特殊字符
+    const formattedContent = `${escapeMarkdown(data.title)}\n\n${escapeMarkdown(data.content)}\n\n[原文链接](${data.url})`;
     
     return {
       raw: data,
@@ -83,7 +90,7 @@ export async function readUrl(url) {
 export async function summarizeContent(content) {
   try {
     const summary = await retryOperation(() => generateSummary(content.raw.content));
-    return `# ${content.raw.title} - 摘要\n\n${summary}\n\n[原文链接](${content.raw.url})`;
+    return `${escapeMarkdown(content.raw.title)} \\- 摘要\n\n${escapeMarkdown(summary)}\n\n[原文链接](${content.raw.url})`;
   } catch (error) {
     logger.error("Error generating summary:", {
       error: error.message,
