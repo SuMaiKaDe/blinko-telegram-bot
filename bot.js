@@ -9,40 +9,40 @@ import { callAI } from "./ai.js";
 
 // 增加api是否以/结尾判断
 if (!config.apiUrl.endsWith("/")) {
-  config.apiUrl = config.apiUrl + "/";
+	config.apiUrl = config.apiUrl + "/";
 }
 
 // 创建日志记录器
 const logger = winston.createLogger({
-  level: "info",
-  format: winston.format.json(),
-  defaultMeta: { service: "telegram-bot" },
-  transports: [
-    new winston.transports.Console(),
-    new winston.transports.File({ filename: "error.log", level: "error" }),
-  ],
+	level: "info",
+	format: winston.format.json(),
+	defaultMeta: { service: "telegram-bot" },
+	transports: [
+		new winston.transports.Console(),
+		new winston.transports.File({ filename: "error.log", level: "error" }),
+	],
 });
 
 // 重试函数
 async function retryOperation(operation, maxRetries = 3) {
-  let lastError;
-  
-  for (let i = 0; i < maxRetries; i++) {
-    try {
-      return await operation();
-    } catch (error) {
-      lastError = error;
-      logger.warn(`Retry ${i + 1}/${maxRetries} failed:`, {
-        error: error.message,
-        stack: error.stack,
-      });
-      if (i < maxRetries - 1) {
-        await new Promise(resolve => setTimeout(resolve, 1000 * (i + 1)));
-      }
-    }
-  }
-  
-  throw lastError;
+	let lastError;
+
+	for (let i = 0; i < maxRetries; i++) {
+		try {
+			return await operation();
+		} catch (error) {
+			lastError = error;
+			logger.warn(`Retry ${i + 1}/${maxRetries} failed:`, {
+				error: error.message,
+				stack: error.stack,
+			});
+			if (i < maxRetries - 1) {
+				await new Promise((resolve) => setTimeout(resolve, 1000 * (i + 1)));
+			}
+		}
+	}
+
+	throw lastError;
 }
 
 // 创建 Telegraf 实例
@@ -53,303 +53,321 @@ bot.use(session());
 
 // 处理回调查询的具体逻辑
 async function handleCallbackQuery(ctx) {
-  const [action, messageId] = ctx.callbackQuery.data.split("_");
-  const urlContent = ctx.session?.[messageId];
+	const [action, messageId] = ctx.callbackQuery.data.split("_");
+	const urlContent = ctx.session?.[messageId];
 
-  if (!urlContent) {
-    await ctx.reply("内容已过期，请重新发送URL");
-    return;
-  }
+	if (!urlContent) {
+		await ctx.reply("内容已过期，请重新发送URL");
+		return;
+	}
 
-  switch (action) {
-    case "save":
-      const saveResult = await sendToApi(urlContent.raw.content, []);
-      await ctx.reply(saveResult.id ? "保存成功" : "保存失败");
-      break;
+	switch (action) {
+		case "save":
+			const saveResult = await sendToApi(urlContent.raw.content, []);
+			await ctx.reply(saveResult.id ? "保存成功" : "保存失败");
+			break;
 
-    case "skip":
-      // 将原始URL作为普通文本保存
-      const skipResult = await sendToApi(urlContent.originalUrl, []);
-      await ctx.reply(skipResult.id ? "链接已保存" : "保存失败");
-      break;
+		case "skip":
+			// 将原始URL作为普通文本保存
+			const skipResult = await sendToApi(urlContent.originalUrl, []);
+			await ctx.reply(skipResult.id ? "链接已保存" : "保存失败");
+			break;
 
-    case "summarize":
-      try {
-        const summary = await summarizeContent(urlContent);
-        const summaryResult = await sendToApi(summary, []);
-        await ctx.reply(summaryResult.id ? "摘要已保存" : "摘要保存失败");
-      } catch (error) {
-        logger.error("Error generating summary:", {
-          error: error.message,
-          stack: error.stack,
-        });
-        await ctx.reply("生成摘要失败，请重试");
-      }
-      break;
+		case "summarize":
+			try {
+				const summary = await summarizeContent(urlContent);
+				const summaryResult = await sendToApi(summary, []);
+				await ctx.reply(summaryResult.id ? "摘要已保存" : "摘要保存失败");
+			} catch (error) {
+				logger.error("Error generating summary:", {
+					error: error.message,
+					stack: error.stack,
+				});
+				await ctx.reply("生成摘要失败，请重试");
+			}
+			break;
 
-    case "cancel":
-      await ctx.reply("已取消");
-      break;
-  }
+		case "cancel":
+			await ctx.reply("已取消");
+			break;
+	}
 
-  // 处理完成后清除会话数据
-  if (ctx.session?.[messageId]) {
-    delete ctx.session[messageId];
-  }
+	// 处理完成后清除会话数据
+	if (ctx.session?.[messageId]) {
+		delete ctx.session[messageId];
+	}
 
-  // 移除按钮
-  try {
-    await ctx.telegram.editMessageReplyMarkup(
-      ctx.callbackQuery.message.chat.id,
-      ctx.callbackQuery.message.message_id,
-      undefined,
-      { inline_keyboard: [] }
-    );
-  } catch (error) {
-    logger.warn("Error removing keyboard:", {
-      error: error.message,
-      stack: error.stack,
-    });
-  }
+	// 移除按钮
+	try {
+		await ctx.telegram.editMessageReplyMarkup(
+			ctx.callbackQuery.message.chat.id,
+			ctx.callbackQuery.message.message_id,
+			undefined,
+			{ inline_keyboard: [] }
+		);
+	} catch (error) {
+		logger.warn("Error removing keyboard:", {
+			error: error.message,
+			stack: error.stack,
+		});
+	}
 }
 
 // 监听消息
 bot.on("message", async (ctx) => {
-  try {
-    const userId = parseInt(config.userId);
+	try {
+		const userId = parseInt(config.userId);
 
-    // 检查消息是否来自指定用户
-    if (ctx.message.from.id === userId) {
-      const markdownText = toMyMarkdown(ctx.message);
-      let content = ctx.message.text
-        ? ctx.message.text
-        : markdownText
-        ? markdownText
-        : null;
-      let attachments = [];
+		// 检查消息是否来自指定用户
+		if (ctx.message.from.id === userId) {
+			const markdownText = toMyMarkdown(ctx.message);
+			let content = ctx.message.text
+				? ctx.message.text
+				: markdownText
+				? markdownText
+				: null;
+			let attachments = [];
+			// 检查消息是否只包含URL（消息内容去除空格后完全匹配URL格式）
+			const urlRegex = /^(?:https?:\/\/|www\.)[^\s]+$/;
+			const isUrlOnly = content && urlRegex.test(content.trim());
 
-      // 检查消息是否只包含URL（消息内容去除空格后完全匹配URL格式）
-      const urlRegex = /^(?:https?:\/\/|www\.)[^\s]+$/;
-      const isUrlOnly = content && urlRegex.test(content.trim());
+			// 只有在启用了Jina时才进行URL特殊处理
+			if (isUrlOnly && config.enableJina) {
+				const loadingMessage = await ctx.reply("正在读取URL内容...", {
+					reply_to_message_id: ctx.message.message_id,
+				});
 
-      // 只有在启用了Jina时才进行URL特殊处理
-      if (isUrlOnly && config.enableJina) {
-        const loadingMessage = await ctx.reply("正在读取URL内容...", {
-          reply_to_message_id: ctx.message.message_id,
-        });
+				try {
+					const url = content.trim().startsWith("www.")
+						? "https://" + content.trim()
+						: content.trim();
+					const urlContent = await retryOperation(() => readUrl(url));
 
-        try {
-          const url = content.trim().startsWith('www.') ? 'https://' + content.trim() : content.trim();
-          const urlContent = await retryOperation(() => readUrl(url));
-          
-          const buttons = [
-            { text: "保存网页内容", callback_data: `save_${loadingMessage.message_id}` },
-            { text: "跳过(保存链接)", callback_data: `skip_${loadingMessage.message_id}` },
-          ];
-          
-          // 如果启用了AI功能，添加总结按钮
-          if (config.enableAI) {
-            buttons.splice(1, 0, { text: "总结", callback_data: `summarize_${loadingMessage.message_id}` });
-          }
-          
-          buttons.push({ text: "取消", callback_data: `cancel_${loadingMessage.message_id}` });
-          
-          await ctx.telegram.editMessageText(
-            ctx.chat.id,
-            loadingMessage.message_id,
-            null,
-            "请选择操作：\n保存网页内容 - 保存解析后的网页内容\n跳过 - 将链接作为普通文本保存",
-            {
-              reply_markup: {
-                inline_keyboard: [buttons],
-              },
-            }
-          );
+					const buttons = [
+						{
+							text: "保存网页内容",
+							callback_data: `save_${loadingMessage.message_id}`,
+						},
+						{
+							text: "跳过(保存链接)",
+							callback_data: `skip_${loadingMessage.message_id}`,
+						},
+					];
 
-          ctx.session = ctx.session || {};
-          ctx.session[loadingMessage.message_id] = {
-            ...urlContent,
-            originalUrl: url // 保存原始URL以供跳过时使用
-          };
-          return;
-        } catch (error) {
-          logger.error("Error processing URL:", {
-            error: error.message,
-            stack: error.stack,
-            url: content.trim(),
-          });
-          await ctx.telegram.editMessageText(
-            ctx.chat.id,
-            loadingMessage.message_id,
-            null,
-            "URL读取失败，请稍后重试"
-          );
-          return;
-        }
-      }
+					// 如果启用了AI功能，添加总结按钮
+					if (config.enableAI) {
+						buttons.splice(1, 0, {
+							text: "总结",
+							callback_data: `summarize_${loadingMessage.message_id}`,
+						});
+					}
 
-      // 处理普通消息和文件
-      const savingMessage = await ctx.reply("收到，正在保存", {
-        reply_to_message_id: ctx.message.message_id,
-      });
+					buttons.push({
+						text: "取消",
+						callback_data: `cancel_${loadingMessage.message_id}`,
+					});
 
-      if (ctx.message.document || ctx.message.photo) {
-        let fileIds = [];
-        if (ctx.message.document) {
-          fileIds.push(ctx.message.document.file_id);
-        }
-        if (ctx.message.photo) {
-          fileIds = fileIds.concat(
-            ctx.message.photo.slice(-1).map((photo) => photo.file_id)
-          );
-        }
+					await ctx.telegram.editMessageText(
+						ctx.chat.id,
+						loadingMessage.message_id,
+						null,
+						"请选择操作：\n保存网页内容 - 保存解析后的网页内容\n跳过 - 将链接作为普通文本保存",
+						{
+							reply_markup: {
+								inline_keyboard: [buttons],
+							},
+						}
+					);
 
-        for (const fileId of fileIds) {
-          const fileUrl = await retryOperation(() => getFileLink(ctx, fileId));
-          let fileinfo = {
-            filename: ctx.message.document?.file_name || "file",
-          };
-          const fileResponse = await retryOperation(() => uploadFile(fileUrl, fileinfo));
+					ctx.session = ctx.session || {};
+					ctx.session[loadingMessage.message_id] = {
+						...urlContent,
+						originalUrl: url, // 保存原始URL以供跳过时使用
+					};
+					return;
+				} catch (error) {
+					logger.error("Error processing URL:", {
+						error: error.message,
+						stack: error.stack,
+						url: content.trim(),
+					});
+					await ctx.telegram.editMessageText(
+						ctx.chat.id,
+						loadingMessage.message_id,
+						null,
+						"URL读取失败，请稍后重试"
+					);
+					return;
+				}
+			}
 
-          if (fileResponse.status === 200) {
-            const { filePath: path, fileName: name, type, size } = fileResponse;
-            attachments.push({ path, name, type, size });
-          } else {
-            await ctx.telegram.editMessageText(
-              ctx.chat.id,
-              savingMessage.message_id,
-              null,
-              `文件上传失败:${fileResponse}`
-            );
-          }
-        }
-      }
+			// 处理普通消息和文件
+			const savingMessage = await ctx.reply("收到，正在保存", {
+				reply_to_message_id: ctx.message.message_id,
+			});
 
-      const saveResult = await retryOperation(() => sendToApi(content, attachments));
-      if (saveResult.id) {
-        await ctx.telegram.editMessageText(
-          ctx.chat.id,
-          savingMessage.message_id,
-          null,
-          "已保存"
-        );
-      } else {
-        await ctx.telegram.editMessageText(
-          ctx.chat.id,
-          savingMessage.message_id,
-          null,
-          `保存失败:${saveResult}`
-        );
-      }
-    }
-  } catch (error) {
-    logger.error("An error occurred:", {
-      error: error.message,
-      stack: error.stack,
-      userId: ctx.message.from.id,
-    });
-    await ctx.reply("发生错误，请稍后再试");
-  }
+			if (ctx.message.document || ctx.message.photo || ctx.message.video) {
+				let fileIds = [];
+				if (ctx.message.document) {
+					fileIds.push(ctx.message.document.file_id);
+				}
+				if (ctx.message.photo) {
+					fileIds = fileIds.concat(
+						ctx.message.photo.slice(-1).map((photo) => photo.file_id)
+					);
+				}
+				if (ctx.message.video) {
+					fileIds = fileIds.concat(ctx.message.video.file_id);
+				}
+
+				for (const fileId of fileIds) {
+					const fileUrl = await retryOperation(() => getFileLink(ctx, fileId));
+					let fileinfo = {
+						filename: ctx.message.document?.file_name || "file",
+					};
+					const fileResponse = await retryOperation(() =>
+						uploadFile(fileUrl, fileinfo)
+					);
+
+					if (fileResponse.status === 200) {
+						const { filePath: path, fileName: name, type, size } = fileResponse;
+						attachments.push({ path, name, type, size });
+					} else {
+						await ctx.telegram.editMessageText(
+							ctx.chat.id,
+							savingMessage.message_id,
+							null,
+							`文件上传失败:${fileResponse}`
+						);
+					}
+				}
+			}
+
+			const saveResult = await retryOperation(() =>
+				sendToApi(content, attachments)
+			);
+			if (saveResult.id) {
+				await ctx.telegram.editMessageText(
+					ctx.chat.id,
+					savingMessage.message_id,
+					null,
+					"已保存"
+				);
+			} else {
+				await ctx.telegram.editMessageText(
+					ctx.chat.id,
+					savingMessage.message_id,
+					null,
+					`保存失败:${saveResult}`
+				);
+			}
+		}
+	} catch (error) {
+		logger.error("An error occurred:", {
+			error: error.message,
+			stack: error.stack,
+			userId: ctx.message.from.id,
+		});
+		await ctx.reply("发生错误，请稍后再试");
+	}
 });
 
 // 处理回调查询
 bot.on("callback_query", async (ctx) => {
-  try {
-    const timeoutMs = 30000; // 30秒超时
-    const timeoutPromise = new Promise((_, reject) => 
-      setTimeout(() => reject(new Error("操作超时")), timeoutMs)
-    );
+	try {
+		const timeoutMs = 30000; // 30秒超时
+		const timeoutPromise = new Promise((_, reject) =>
+			setTimeout(() => reject(new Error("操作超时")), timeoutMs)
+		);
 
-    await Promise.race([
-      handleCallbackQuery(ctx),
-      timeoutPromise
-    ]);
-  } catch (error) {
-    logger.error("Error handling callback query:", {
-      error: error.message,
-      stack: error.stack,
-      query: ctx.callbackQuery.data,
-    });
-    await ctx.reply(error.message === "操作超时" ? "操作超时,请重试" : "处理请求时发生错误");
-  }
+		await Promise.race([handleCallbackQuery(ctx), timeoutPromise]);
+	} catch (error) {
+		logger.error("Error handling callback query:", {
+			error: error.message,
+			stack: error.stack,
+			query: ctx.callbackQuery.data,
+		});
+		await ctx.reply(
+			error.message === "操作超时" ? "操作超时,请重试" : "处理请求时发生错误"
+		);
+	}
 });
 
 // 获取文件链接
 async function getFileLink(ctx, fileId) {
-  try {
-    const file = await ctx.telegram.getFile(fileId);
-    return `https://api.telegram.org/file/bot${config.telegramToken}/${file.file_path}`;
-  } catch (error) {
-    logger.error("Error getting file link:", {
-      error: error.message,
-      stack: error.stack,
-      fileId,
-    });
-    throw error;
-  }
+	try {
+		const file = await ctx.telegram.getFile(fileId);
+		return `https://api.telegram.org/file/bot${config.telegramToken}/${file.file_path}`;
+	} catch (error) {
+		logger.error("Error getting file link:", {
+			error: error.message,
+			stack: error.stack,
+			fileId,
+		});
+		throw error;
+	}
 }
 
 // 上传文件到 API
 async function uploadFile(fileUrl, fileinfo) {
-  try {
-    const response = await axios.get(fileUrl, { responseType: "stream" });
-    const fileStream = response.data;
-    const formData = new FormData();
-    formData.append("file", fileStream, { filename: fileinfo.filename });
+	try {
+		const response = await axios.get(fileUrl, { responseType: "stream" });
+		const fileStream = response.data;
+		const formData = new FormData();
+		formData.append("file", fileStream, { filename: fileinfo.filename });
+		const uploadResponse = await axios.post(
+			`${config.apiUrl}/api/file/upload`,
+			formData,
+			{
+				headers: { Authorization: `Bearer ${config.apiToken}` },
+			}
+		);
 
-    const uploadResponse = await axios.post(
-      `${config.apiUrl}/api/file/upload`,
-      formData,
-      {
-        headers: { Authorization: `Bearer ${config.apiToken}` },
-      }
-    );
-
-    return uploadResponse.data;
-  } catch (error) {
-    logger.error("Error uploading file:", {
-      error: error.message,
-      stack: error.stack,
-      fileUrl,
-    });
-    throw error;
-  }
+		return uploadResponse.data;
+	} catch (error) {
+		logger.error("Error uploading file:", {
+			error: error.message,
+			stack: error.stack,
+			fileUrl,
+		});
+		throw error;
+	}
 }
 
 // 发送消息到 API
 async function sendToApi(content, attachments) {
-  try {
-    const payload = {
-      content,
-      type: 0,
-      attachments,
-    };
+	try {
+		const payload = {
+			content,
+			type: 0,
+			attachments,
+		};
 
-    const response = await axios.post(
-      `${config.apiUrl}/api/v1/note/upsert`,
-      payload,
-      {
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${config.apiToken}`,
-        },
-      }
-    );
+		const response = await axios.post(
+			`${config.apiUrl}/api/v1/note/upsert`,
+			payload,
+			{
+				headers: {
+					"Content-Type": "application/json",
+					Authorization: `Bearer ${config.apiToken}`,
+				},
+			}
+		);
 
-    return response.data;
-  } catch (error) {
-    logger.error("Error sending to API:", {
-      error: error.message,
-      stack: error.stack,
-      contentLength: content?.length,
-    });
-    throw error;
-  }
+		return response.data;
+	} catch (error) {
+		logger.error("Error sending to API:", {
+			error: error.message,
+			stack: error.stack,
+			contentLength: content?.length,
+		});
+		throw error;
+	}
 }
 
 // 启动机器人
 bot.launch();
 
 // 优雅退出
-process.once('SIGINT', () => bot.stop('SIGINT'));
-process.once('SIGTERM', () => bot.stop('SIGTERM'));
+process.once("SIGINT", () => bot.stop("SIGINT"));
+process.once("SIGTERM", () => bot.stop("SIGTERM"));
