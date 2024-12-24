@@ -1,0 +1,22 @@
+version: '3.3'
+
+services:
+  blinko-telegram-bot:
+    container_name: blinko-telegram-bot
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: emengweb/blinko-telegram-bot
+    environment:
+      - TELEGRAM_BOT_TOKEN=
+      - TELEGRAM_USER_ID=
+      - API_URL=
+      - API_TOKEN=
+      - ENABLE_AI=false
+      - ENABLE_JINA=false
+      - OPEAI_URL="https://api.openai.com/v1"
+      - OPEAI_KEY=
+      - OPEAI_MODEL="gpt-3.5-turbo"
+      - JINA_TOKEN=
+      - JINA_KEEP_IMAGES=false
+    restart: always
