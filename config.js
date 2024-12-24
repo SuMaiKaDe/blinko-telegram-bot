@@ -3,6 +3,9 @@ export default {
 	userId: "123456789", // 特定用户的UserID
 	apiUrl: "https://blink.baidu.com", // API接口地址
 	apiToken: "", // API接口Token
+	// 功能开关
+	enableAI: false, // 是否启用AI功能（总结功能）
+	enableJina: false, // 是否启用Jina阅读器
 	// AI配置
 	openaiUrl: "https://api.openai.com/v1", // OpenAI API地址
 	openaiKey: "", // OpenAI API密钥

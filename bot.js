@@ -67,6 +67,12 @@ async function handleCallbackQuery(ctx) {
       await ctx.reply(saveResult.id ? "保存成功" : "保存失败");
       break;
 
+    case "skip":
+      // 将原始URL作为普通文本保存
+      const skipResult = await sendToApi(urlContent.originalUrl, []);
+      await ctx.reply(skipResult.id ? "链接已保存" : "保存失败");
+      break;
+
     case "summarize":
       try {
         const summary = await summarizeContent(urlContent);
@@ -85,6 +91,26 @@ async function handleCallbackQuery(ctx) {
       await ctx.reply("已取消");
       break;
   }
+
+  // 处理完成后清除会话数据
+  if (ctx.session?.[messageId]) {
+    delete ctx.session[messageId];
+  }
+
+  // 移除按钮
+  try {
+    await ctx.telegram.editMessageReplyMarkup(
+      ctx.callbackQuery.message.chat.id,
+      ctx.callbackQuery.message.message_id,
+      undefined,
+      { inline_keyboard: [] }
+    );
+  } catch (error) {
+    logger.warn("Error removing keyboard:", {
+      error: error.message,
+      stack: error.stack,
+    });
+  }
 }
 
 // 监听消息
@@ -102,46 +128,55 @@ bot.on("message", async (ctx) => {
         : null;
       let attachments = [];
 
-      // 检查是否是URL
-      const urlRegex = /(https?:\/\/|www\.)[^\s]+/g;
-      const urls = content?.match(urlRegex);
+      // 检查消息是否只包含URL（消息内容去除空格后完全匹配URL格式）
+      const urlRegex = /^(?:https?:\/\/|www\.)[^\s]+$/;
+      const isUrlOnly = content && urlRegex.test(content.trim());
 
-      if (urls && urls.length > 0) {
+      // 只有在启用了Jina时才进行URL特殊处理
+      if (isUrlOnly && config.enableJina) {
         const loadingMessage = await ctx.reply("正在读取URL内容...", {
           reply_to_message_id: ctx.message.message_id,
         });
 
         try {
-          const url = urls[0].startsWith('www.') ? 'https://' + urls[0] : urls[0];
+          const url = content.trim().startsWith('www.') ? 'https://' + content.trim() : content.trim();
           const urlContent = await retryOperation(() => readUrl(url));
+          
+          const buttons = [
+            { text: "保存网页内容", callback_data: `save_${loadingMessage.message_id}` },
+            { text: "跳过(保存链接)", callback_data: `skip_${loadingMessage.message_id}` },
+          ];
+          
+          // 如果启用了AI功能，添加总结按钮
+          if (config.enableAI) {
+            buttons.splice(1, 0, { text: "总结", callback_data: `summarize_${loadingMessage.message_id}` });
+          }
+          
+          buttons.push({ text: "取消", callback_data: `cancel_${loadingMessage.message_id}` });
           
           await ctx.telegram.editMessageText(
             ctx.chat.id,
             loadingMessage.message_id,
             null,
-            "请选择操作：",
+            "请选择操作：\n保存网页内容 - 保存解析后的网页内容\n跳过 - 将链接作为普通文本保存",
             {
               reply_markup: {
-                inline_keyboard: [
-                  [
-                    { text: "保存", callback_data: `save_${loadingMessage.message_id}` },
-                    { text: "总结", callback_data: `summarize_${loadingMessage.message_id}` },
-                    { text: "取消", callback_data: `cancel_${loadingMessage.message_id}` },
-                  ],
-                ],
+                inline_keyboard: [buttons],
               },
             }
           );
 
           ctx.session = ctx.session || {};
-          ctx.session[loadingMessage.message_id] = urlContent;
-          
+          ctx.session[loadingMessage.message_id] = {
+            ...urlContent,
+            originalUrl: url // 保存原始URL以供跳过时使用
+          };
           return;
         } catch (error) {
           logger.error("Error processing URL:", {
             error: error.message,
             stack: error.stack,
-            url: urls[0],
+            url: content.trim(),
           });
           await ctx.telegram.editMessageText(
             ctx.chat.id,
